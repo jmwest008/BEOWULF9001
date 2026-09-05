@@ -6,6 +6,12 @@ This project is self-contained: it keeps its own local assets and
 configuration (no shared folder with the node project) and can be built on
 its own with ESP-IDF.
 
+This is an **early scaffold, not a finished implementation**. The UI shell,
+screen flow, and ESP-NOW Hello heartbeat below exist and build, but Settings,
+Mode, and real device control/scanning behavior are placeholders. Node
+firmware (`BEOWULF9001-Node/`) does not exist yet and is out of scope for
+this scaffold.
+
 ## Scope of this scaffold
 
 - Hub UI and screen state machine only (Menu, Devices, Settings, Mode).
