@@ -4,13 +4,26 @@ BEOWULF9001 is a two-part embedded firmware workspace for a hub-and-node system 
 
 The repository is organized so the hub firmware and node firmware can live side by side while keeping each project self-contained.
 
+### Project status
+
+- `BEOWULF9001-Hub/` contains an **initial scaffold only**: the display/touch
+  UI shell, the Menu/Devices/Settings/Mode screen flow, and a minimal
+  ESP-NOW "Hello" heartbeat used to mark a node slot connected/disconnected.
+  It is not a finished product and does not implement real device control,
+  scanning, or settings behavior yet.
+- `BEOWULF9001-Node/` does **not exist yet**. Node firmware is out of scope
+  for this pass and is planned future work.
+- Connected-node behavior, ESP-NOW heartbeat handling, and the
+  Settings/Mode screens are scaffolded/placeholder only; they are not a
+  complete mesh protocol or feature implementation.
+
 ## Repository layout
 
 ```text
 BEOWULF9001/
   README.md
-  BEOWULF9001-Hub/
-  BEOWULF9001-Node/
+  BEOWULF9001-Hub/       (initial scaffold, present)
+  BEOWULF9001-Node/      (planned, not yet created)
 ```
 
 ### Planned project roles
