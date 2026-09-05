@@ -37,7 +37,7 @@ BEOWULF9001/
 
 ### Nodes
 
-- Device: Seeed ESP32-35 (with antenna)
+- Device: Seeed ESP32-C5 (with antenna)
 - Connectivity: Wi-Fi, Bluetooth 5.3 (NimBLE), ESP-NOW
 - Total nodes planned: 6
 
