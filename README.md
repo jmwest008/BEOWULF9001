@@ -89,12 +89,19 @@ The current architectural intent is:
 The first implementation pass should focus on:
 
 1. repository structure
-2. hub project scaffold
+2. hub project scaffold ✅ see `BEOWULF9001-Hub/`
 3. node template scaffold
-4. local project assets
-5. MAC address placeholder configuration
-6. communication scaffolding
-7. build configuration for ESP-IDF
+4. local project assets ✅ hub keeps its own assets/config, no shared folder
+5. MAC address placeholder configuration ✅ `BEOWULF9001-Hub/main/peer_mac_addresses.h`
+6. communication scaffolding ✅ minimal ESP-NOW Hello heartbeat in the hub
+7. build configuration for ESP-IDF ✅ hub `CMakeLists.txt` files
+
+The hub scaffold keeps the v1.0 GPIO/touch/display assumptions from
+`Reference_v1.0_main` and implements the Menu/Devices/Settings/Mode screen
+flow from the new hub spec. The Devices screen shows only connected nodes as
+active cards; the remaining node slots (up to 6 total) are dimmed
+placeholders that do not respond to touch. The node project scaffold is not
+part of this pass.
 
 ## Open questions and design conflicts
 
