@@ -1,4 +1,5 @@
 #include <atomic>
+#include <cstdio>
 #include <cstring>
 
 #include "driver/gpio.h"
@@ -494,7 +495,9 @@ void draw_connection_status(const Rectangle &area)
 	} else if (connected_count == 1) {
 		draw_small_label(area, "1 NODE CONNECTED", COLOR_LIGHT_GRAY);
 	} else {
-		draw_small_label(area, "NODES CONNECTED", COLOR_LIGHT_GRAY);
+		char status_text[24];
+		std::snprintf(status_text, sizeof(status_text), "%d NODES CONNECTED", connected_count);
+		draw_small_label(area, status_text, COLOR_LIGHT_GRAY);
 	}
 }
 
@@ -648,14 +651,23 @@ void touch_monitor_task(void *parameter)
 		expire_stale_nodes();
 
 		uint16_t pressure = 0;
-		ESP_ERROR_CHECK(read_touch_axis(context->touch_device, 0xB0, &pressure));
+		if (read_touch_axis(context->touch_device, 0xB0, &pressure) != ESP_OK) {
+			// Skip this cycle on a transient SPI/touch read failure rather than
+			// aborting the whole hub; the next poll will retry.
+			vTaskDelay(pdMS_TO_TICKS(50));
+			continue;
+		}
 
 		const bool touch_active = pressure > TOUCH_PRESSURE_THRESHOLD;
 		if (touch_active && !touch_was_active) {
 			uint16_t raw_x = 0;
 			uint16_t raw_y = 0;
-			ESP_ERROR_CHECK(read_touch_axis(context->touch_device, 0xD0, &raw_x));
-			ESP_ERROR_CHECK(read_touch_axis(context->touch_device, 0x90, &raw_y));
+			if (read_touch_axis(context->touch_device, 0xD0, &raw_x) != ESP_OK ||
+				read_touch_axis(context->touch_device, 0x90, &raw_y) != ESP_OK) {
+				touch_was_active = touch_active;
+				vTaskDelay(pdMS_TO_TICKS(50));
+				continue;
+			}
 			// Same touch orientation/mapping as the v1.0 reference project:
 			// axes are swapped and mirrored to match the panel's swap_xy setup.
 			const int screen_x = DISPLAY_WIDTH - 1 - scale_touch_coordinate(raw_y, RAW_TOUCH_Y_MIN, RAW_TOUCH_Y_MAX, DISPLAY_WIDTH);
