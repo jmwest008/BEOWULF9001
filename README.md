@@ -1,8 +1,8 @@
 # BEOWULF9001
 
-BEOWULF9001 is a dual-project embedded firmware workspace for a hub-and-node system built around ESP32-class devices.
+BEOWULF9001 is a two-part embedded firmware workspace for a hub-and-node system built around ESP32-class devices.
 
-The repository is organized so the hub firmware and the node firmware can live side by side while sharing common protocol definitions, UI constants, and utility code.
+The repository is organized so the hub firmware and node firmware can live side by side while keeping each project self-contained.
 
 ## Repository layout
 
@@ -10,27 +10,20 @@ The repository is organized so the hub firmware and the node firmware can live s
 BEOWULF9001/
   README.md
   BEOWULF9001-Hub/
-  BEOWULF9001-Node1/
-  BEOWULF9001-Node2/
-  shared/
+  BEOWULF9001-Node/
 ```
 
-### Planned folder roles
+### Planned project roles
 
 - `BEOWULF9001-Hub/`
   - Central hub firmware
   - UI, device orchestration, screen management, and ESP-NOW coordination
+  - Maintains its own local assets and project-specific configuration files
 
-- `BEOWULF9001-Node1/`
-  - First node firmware project
+- `BEOWULF9001-Node/`
+  - Node firmware template used to build any of the six nodes
   - Node-side radio/control logic and hardware-specific routines
-
-- `BEOWULF9001-Node2/`
-  - Additional node firmware project(s)
-  - Intended to be duplicated or extended as more nodes are added
-
-- `shared/`
-  - Common headers, structs, protocol constants, geometry data, colors, and reusable helpers
+  - Maintains its own local assets and project-specific configuration files
 
 ## Hardware overview
 
@@ -46,6 +39,39 @@ BEOWULF9001/
 
 - Device: Seeed ESP32-35 (with antenna)
 - Connectivity: Wi-Fi, Bluetooth 5.3 (NimBLE), ESP-NOW
+- Total nodes planned: 6
+
+## Node build workflow
+
+The node project is intended to act as a template.
+
+A single build-time value in `main.cpp` will identify which target node is being built:
+
+- `NODE_ID = 1`
+- `NODE_ID = 2`
+- `NODE_ID = 3`
+- `NODE_ID = 4`
+- `NODE_ID = 5`
+- `NODE_ID = 6`
+
+This makes it possible to reuse the same node project while building six distinct physical targets.
+
+## MAC address workflow
+
+A MAC address config file will be maintained for both projects so target addresses can be filled in as devices are provisioned.
+
+Planned use:
+
+- hub MAC address placeholder
+- node 1 MAC address placeholder
+- node 2–6 MAC address placeholders
+
+Recommended placement:
+
+- `BEOWULF9001-Hub/` keeps its own copy if needed for hub-side lookup
+- `BEOWULF9001-Node/` keeps its own copy if needed for node-side lookup
+
+The placeholders will be replaced manually as each device is built and flashed.
 
 ## Intended system design
 
@@ -55,60 +81,55 @@ The current architectural intent is:
 
 - the hub manages screens and operator workflow
 - nodes execute the requested tasks
-- shared code keeps protocol formats and constants aligned
-- hub-to-node communication uses a star-style control model
+- each project remains independent in its own folder
+- target addresses and node identity are configured explicitly during build
 
 ## Initial implementation goals
 
 The first implementation pass should focus on:
 
 1. repository structure
-2. shared protocol definitions
-3. hub UI shell
-4. node firmware shell
-5. communication scaffolding
-6. build configuration for ESP-IDF
+2. hub project scaffold
+3. node template scaffold
+4. local project assets
+5. MAC address placeholder configuration
+6. communication scaffolding
+7. build configuration for ESP-IDF
 
 ## Open questions and design conflicts
 
 The spec contains several items that should be resolved before full implementation:
 
-### 1. Repo layout vs. build layout
+### 1. Build switching method
 
-The repo is intended to contain multiple projects, but each folder should ideally be a normal ESP-IDF app rather than relying on file renaming to switch builds.
+The original workflow described renaming source files to switch builds.
 
-**Question:** Should each project folder be a standalone ESP-IDF application with its own `main/`, `CMakeLists.txt`, and `sdkconfig.defaults`?
+**Recommendation:** avoid file renaming as a build switch mechanism; use separate project folders or explicit build targets instead.
 
-### 2. Node naming
+### 2. Shared vs local assets
 
-The spec mentions `BEOWULF9001-Node1,2 etc.` but does not define the total node count.
+You requested that assets be maintained inside each project instead of a shared folder.
 
-**Question:** How many node project folders should be created initially?
+**Decision:** each project should keep its own local assets, even if that creates some duplication.
 
-### 3. Shared code scope
+### 3. MAC config placement
 
-The `shared/` folder can hold protocol definitions and utility code, but it is not yet clear which parts belong there.
+It is still worth deciding whether the MAC placeholder file should live in both project folders or in one shared repo-level location.
 
-**Question:** Should `shared/` contain only pure headers and constants, or also reusable C++ source files?
+**Question:** should the MAC address file be duplicated into each project, or kept once at the repository root?
 
-### 4. Hardware definition detail
+### 4. Node build configuration
 
-The hub hardware is fairly specific, but the node board is still described loosely.
+The node template will be driven by a single `NODE_ID` value.
 
-**Question:** What is the exact node board model so the README and build assumptions stay accurate?
+**Question:** should `NODE_ID` live directly in `main.cpp`, or in a small project config header for easier editing?
 
-### 5. Radio feature boundaries
+### 5. Hardware definition detail
 
-The spec includes several radio and discovery-oriented features.
+The hub hardware is fairly specific, but the node board is still described somewhat broadly.
 
-**Question:** Which features are intended for the first milestone, and which should be deferred to later phases?
-
-### 6. File naming and project switching
-
-The original workflow describes renaming source files to switch between hub and node builds.
-
-**Recommendation:** Avoid file renaming as a build switch mechanism; use separate project folders or build targets instead.
+**Question:** do you want the README to name the exact node board model or keep it generic for now?
 
 ## Next step
 
-Once the repo structure is confirmed, the next step is to add the first hub project scaffold and define the shared protocol layer.
+Once the structure is confirmed, the next step is to add the first hub scaffold and the node template scaffold with their local placeholder assets and configuration files.
