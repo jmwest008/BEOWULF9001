@@ -616,6 +616,14 @@ void draw_mode_screen(int active_card = -1)
 
 // ---------------------------------------------------------------------
 // Touch input.
+//
+// LCD (esp_lcd_panel_draw_bitmap) and touch (read_touch_axis) transactions
+// both run on SPI2, but all draw_framebuffer()/read_touch_axis() calls in
+// this scaffold happen from touch_monitor_task alone, so accesses are
+// naturally serialized -- there is no cross-task bus contention today. If a
+// future change adds LCD/touch access from another task, that access must
+// be synchronized (e.g. with a mutex) before running concurrently with this
+// task.
 // ---------------------------------------------------------------------
 
 struct TouchMonitorContext {
@@ -800,6 +808,8 @@ extern "C" void app_main(void)
 		add_node_peer(node_index);
 	}
 
+	// Intentionally never freed: this is a single allocation for the
+	// lifetime of the firmware (app_main never returns).
 	framebuffer = static_cast<uint16_t *>(heap_caps_malloc(sizeof(uint16_t) * DISPLAY_WIDTH * DISPLAY_HEIGHT, MALLOC_CAP_SPIRAM));
 	if (framebuffer == nullptr) {
 		ESP_LOGE(TAG, "Failed to allocate PSRAM framebuffer");
