@@ -273,6 +273,10 @@ void add_node_peer(int node_index)
 	std::memcpy(peer.peer_addr, hub_mesh::NODE_MACS[node_index], ESP_NOW_ETH_ALEN);
 	peer.ifidx = WIFI_IF_STA;
 	peer.channel = hub_mesh::ESP_NOW_CHANNEL;
+	// TODO: enable ESP-NOW encryption (peer.encrypt + esp_now_set_pmk()/lmk)
+	// once a real per-deployment key is provisioned alongside the node MAC
+	// addresses in peer_mac_addresses.h; unencrypted is only acceptable for
+	// this placeholder-MAC scaffold.
 	peer.encrypt = false;
 	ESP_ERROR_CHECK(esp_now_add_peer(&peer));
 }
@@ -742,7 +746,12 @@ void touch_monitor_task(void *parameter)
 extern "C" void app_main(void)
 {
 	ESP_ERROR_CHECK(esp_psram_init());
-	ESP_ERROR_CHECK(nvs_flash_init());
+	esp_err_t nvs_result = nvs_flash_init();
+	if (nvs_result == ESP_ERR_NVS_NO_FREE_PAGES || nvs_result == ESP_ERR_NVS_NEW_VERSION_FOUND) {
+		ESP_ERROR_CHECK(nvs_flash_erase());
+		nvs_result = nvs_flash_init();
+	}
+	ESP_ERROR_CHECK(nvs_result);
 	ESP_ERROR_CHECK(esp_netif_init());
 	ESP_ERROR_CHECK(esp_event_loop_create_default());
 	wifi_init_config_t wifi_config = WIFI_INIT_CONFIG_DEFAULT();

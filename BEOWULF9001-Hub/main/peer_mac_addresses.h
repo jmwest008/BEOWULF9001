@@ -30,7 +30,7 @@ constexpr uint8_t NODE_5_MAC[6] = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
 constexpr uint8_t NODE_6_MAC[6] = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
 
 constexpr const uint8_t *const NODE_MACS[MAX_NODES] = {
-	NODE_1_MAC, NODE_2_MAC, NODE_3_MAC, NODE_4_MAC, NODE_5_MAC, NODE_6_MAC,
+    NODE_1_MAC, NODE_2_MAC, NODE_3_MAC, NODE_4_MAC, NODE_5_MAC, NODE_6_MAC,
 };
 
 } // namespace hub_mesh
