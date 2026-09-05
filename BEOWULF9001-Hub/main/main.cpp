@@ -141,6 +141,10 @@ constexpr int GRID_CARD_WIDTH = (DISPLAY_WIDTH - (2 * BOX_MARGIN) - GRID_CARD_GA
 constexpr int GRID_CARD_HEIGHT = (DISPLAY_HEIGHT - CONTENT_TOP - GRID_STATUS_HEIGHT - BOX_MARGIN - ((GRID_ROWS - 1) * GRID_CARD_GAP)) / GRID_ROWS;
 constexpr int GRID_STATUS_Y = CONTENT_TOP + (GRID_ROWS * GRID_CARD_HEIGHT) + ((GRID_ROWS - 1) * GRID_CARD_GAP) + 4;
 
+// Settings and Mode only use the first row of the shared card grid.
+constexpr int SETTINGS_CARD_COUNT = 2;
+constexpr int MODE_CARD_COUNT = 2;
+
 Rectangle grid_card_rect(int index)
 {
 	const int row = index / GRID_COLUMNS;
@@ -245,6 +249,8 @@ void expire_stale_nodes()
 // project.
 // ---------------------------------------------------------------------
 
+// ASCII "BEUW" (BEOWULF9001), used purely as a sanity-check tag to reject
+// non-mesh ESP-NOW traffic before parsing the rest of the message.
 constexpr uint32_t MESH_MESSAGE_MAGIC = 0x42455755u;
 constexpr uint8_t MESH_PROTOCOL_VERSION = 1;
 
@@ -284,7 +290,13 @@ void add_node_peer(int node_index)
 	// addresses in peer_mac_addresses.h; unencrypted is only acceptable for
 	// this placeholder-MAC scaffold.
 	peer.encrypt = false;
-	ESP_ERROR_CHECK(esp_now_add_peer(&peer));
+	const esp_err_t result = esp_now_add_peer(&peer);
+	if (result != ESP_OK) {
+		// Log and continue instead of aborting the whole hub: a single peer
+		// registration failure (e.g. peer already added) shouldn't take down
+		// the other five node slots or the UI.
+		ESP_LOGE(TAG, "Failed to add ESP-NOW peer for node %d: %d", node_index, static_cast<int>(result));
+	}
 }
 
 void mesh_receive_callback(const esp_now_recv_info_t *recv_info, const uint8_t *data, int data_length)
@@ -580,9 +592,9 @@ void draw_settings_screen(int active_card = -1)
 {
 	draw_submenu_header("SETTINGS");
 
-	const char *labels[2] = {"OPTION A", "OPTION B"};
-	const bool enabled[2] = {setting_option_a_enabled, setting_option_b_enabled};
-	for (int index = 0; index < 2; ++index) {
+	const char *labels[SETTINGS_CARD_COUNT] = {"OPTION A", "OPTION B"};
+	const bool enabled[SETTINGS_CARD_COUNT] = {setting_option_a_enabled, setting_option_b_enabled};
+	for (int index = 0; index < SETTINGS_CARD_COUNT; ++index) {
 		const Rectangle card = grid_card_rect(index);
 		if (index == active_card) {
 			fill_rectangle(card.x, card.y, card.width, card.height, COLOR_WHITE);
@@ -603,8 +615,8 @@ void draw_mode_screen(int active_card = -1)
 {
 	draw_submenu_header("MODE");
 
-	const char *labels[2] = {"MODE A", "MODE B"};
-	for (int index = 0; index < 2; ++index) {
+	const char *labels[MODE_CARD_COUNT] = {"MODE A", "MODE B"};
+	for (int index = 0; index < MODE_CARD_COUNT; ++index) {
 		const Rectangle card = grid_card_rect(index);
 		if (index == active_card || index == active_mode) {
 			fill_rectangle(card.x, card.y, card.width, card.height, COLOR_WHITE);
@@ -709,7 +721,7 @@ void handle_devices_touch(const TouchMonitorContext *context, int screen_x, int 
 
 void handle_settings_touch(const TouchMonitorContext *context, int screen_x, int screen_y)
 {
-	const int selected_card = grid_card_at(screen_x, screen_y, 2);
+	const int selected_card = grid_card_at(screen_x, screen_y, SETTINGS_CARD_COUNT);
 	if (selected_card == 0) {
 		setting_option_a_enabled = !setting_option_a_enabled;
 	} else if (selected_card == 1) {
@@ -723,7 +735,7 @@ void handle_settings_touch(const TouchMonitorContext *context, int screen_x, int
 
 void handle_mode_touch(const TouchMonitorContext *context, int screen_x, int screen_y)
 {
-	const int selected_card = grid_card_at(screen_x, screen_y, 2);
+	const int selected_card = grid_card_at(screen_x, screen_y, MODE_CARD_COUNT);
 	if (selected_card < 0) {
 		return;
 	}
