@@ -237,6 +237,12 @@ void expire_stale_nodes()
 // ---------------------------------------------------------------------
 // ESP-NOW mesh message scaffold. Only a Hello heartbeat is implemented for
 // now; scan/control messages will be added alongside the node project.
+//
+// Hello is expected to be sent periodically by each node (node -> hub only);
+// the hub does not send its own Hello, it only listens and marks a node
+// slot connected/disconnected based on what it receives. Sending a hub-side
+// Hello/discovery message is left for future work alongside the node
+// project.
 // ---------------------------------------------------------------------
 
 constexpr uint32_t MESH_MESSAGE_MAGIC = 0x42455755u;
@@ -645,6 +651,79 @@ esp_err_t read_touch_axis(spi_device_handle_t touch_device, uint8_t command, uin
 	return result;
 }
 
+// Per-screen touch handlers, extracted from touch_monitor_task to keep the
+// polling loop itself short and to make it easy to add new screens later.
+
+void handle_menu_touch(const TouchMonitorContext *context, int screen_x, int screen_y, Screen &current_screen)
+{
+	const int selected_button = button_at(screen_x, screen_y);
+	if (selected_button < 0) {
+		return;
+	}
+
+	draw_menu_frame(selected_button);
+	draw_framebuffer(context->panel_handle);
+	vTaskDelay(pdMS_TO_TICKS(MENU_TRANSITION_DELAY_MS));
+
+	switch (selected_button) {
+	case 0:
+		current_screen = Screen::Settings;
+		draw_settings_screen();
+		break;
+	case 1:
+		current_screen = Screen::Devices;
+		draw_devices_screen();
+		break;
+	case 2:
+		current_screen = Screen::Mode;
+		draw_mode_screen();
+		break;
+	default:
+		break;
+	}
+	draw_framebuffer(context->panel_handle);
+}
+
+void handle_devices_touch(const TouchMonitorContext *context, int screen_x, int screen_y)
+{
+	const int selected_card = grid_card_at(screen_x, screen_y, hub_mesh::MAX_NODES);
+	// Disconnected placeholders never respond to touch.
+	if (selected_card < 0 || !node_is_connected(selected_card)) {
+		return;
+	}
+
+	draw_devices_screen(selected_card);
+	draw_framebuffer(context->panel_handle);
+	vTaskDelay(pdMS_TO_TICKS(MENU_TRANSITION_DELAY_MS));
+	draw_devices_screen();
+	draw_framebuffer(context->panel_handle);
+}
+
+void handle_settings_touch(const TouchMonitorContext *context, int screen_x, int screen_y)
+{
+	const int selected_card = grid_card_at(screen_x, screen_y, 2);
+	if (selected_card == 0) {
+		setting_option_a_enabled = !setting_option_a_enabled;
+	} else if (selected_card == 1) {
+		setting_option_b_enabled = !setting_option_b_enabled;
+	} else {
+		return;
+	}
+	draw_settings_screen();
+	draw_framebuffer(context->panel_handle);
+}
+
+void handle_mode_touch(const TouchMonitorContext *context, int screen_x, int screen_y)
+{
+	const int selected_card = grid_card_at(screen_x, screen_y, 2);
+	if (selected_card < 0) {
+		return;
+	}
+	active_mode = active_mode == selected_card ? -1 : selected_card;
+	draw_mode_screen();
+	draw_framebuffer(context->panel_handle);
+}
+
 void touch_monitor_task(void *parameter)
 {
 	const TouchMonitorContext *context = static_cast<TouchMonitorContext *>(parameter);
@@ -678,62 +757,17 @@ void touch_monitor_task(void *parameter)
 			const int screen_y = DISPLAY_HEIGHT - 1 - scale_touch_coordinate(raw_x, RAW_TOUCH_X_MIN, RAW_TOUCH_X_MAX, DISPLAY_HEIGHT);
 
 			if (current_screen == Screen::Menu) {
-				const int selected_button = button_at(screen_x, screen_y);
-				if (selected_button >= 0) {
-					draw_menu_frame(selected_button);
-					draw_framebuffer(context->panel_handle);
-					vTaskDelay(pdMS_TO_TICKS(MENU_TRANSITION_DELAY_MS));
-
-					switch (selected_button) {
-					case 0:
-						current_screen = Screen::Settings;
-						draw_settings_screen();
-						break;
-					case 1:
-						current_screen = Screen::Devices;
-						draw_devices_screen();
-						break;
-					case 2:
-						current_screen = Screen::Mode;
-						draw_mode_screen();
-						break;
-					default:
-						break;
-					}
-					draw_framebuffer(context->panel_handle);
-				}
+				handle_menu_touch(context, screen_x, screen_y, current_screen);
 			} else if (point_in_rectangle(screen_x, screen_y, BACK_BUTTON_TOUCH)) {
 				current_screen = Screen::Menu;
 				draw_menu_frame(-1);
 				draw_framebuffer(context->panel_handle);
 			} else if (current_screen == Screen::Devices) {
-				const int selected_card = grid_card_at(screen_x, screen_y, hub_mesh::MAX_NODES);
-				// Disconnected placeholders never respond to touch.
-				if (selected_card >= 0 && node_is_connected(selected_card)) {
-					draw_devices_screen(selected_card);
-					draw_framebuffer(context->panel_handle);
-					vTaskDelay(pdMS_TO_TICKS(MENU_TRANSITION_DELAY_MS));
-					draw_devices_screen();
-					draw_framebuffer(context->panel_handle);
-				}
+				handle_devices_touch(context, screen_x, screen_y);
 			} else if (current_screen == Screen::Settings) {
-				const int selected_card = grid_card_at(screen_x, screen_y, 2);
-				if (selected_card == 0) {
-					setting_option_a_enabled = !setting_option_a_enabled;
-					draw_settings_screen();
-					draw_framebuffer(context->panel_handle);
-				} else if (selected_card == 1) {
-					setting_option_b_enabled = !setting_option_b_enabled;
-					draw_settings_screen();
-					draw_framebuffer(context->panel_handle);
-				}
+				handle_settings_touch(context, screen_x, screen_y);
 			} else if (current_screen == Screen::Mode) {
-				const int selected_card = grid_card_at(screen_x, screen_y, 2);
-				if (selected_card >= 0) {
-					active_mode = active_mode == selected_card ? -1 : selected_card;
-					draw_mode_screen();
-					draw_framebuffer(context->panel_handle);
-				}
+				handle_mode_touch(context, screen_x, screen_y);
 			}
 		}
 		touch_was_active = touch_active;
